@@ -10,6 +10,7 @@ import {DeployMockNft} from "script/DeployMockNft.s.sol";
 
 contract TestMarketplace is Test {
     event ItemListed(address indexed seller, address indexed nftAddress, uint256 indexed tokenId, uint256 price);
+    event ItemBought(address indexed buyer, address indexed nftAddress, uint256 indexed tokenId, uint256 price);
 
     DeployMockNft public deploy;
     MockNft public mockNft;
@@ -17,6 +18,7 @@ contract TestMarketplace is Test {
     DeployMarketplace public deployer;
     NftMarketplace public market;
     address public USER = makeAddr("User");
+    address public USER1 = makeAddr("User1");
     uint256 public constant TOKEN_ID = 0;
     uint256 public constant PRICE = 1 ether;
 
@@ -26,7 +28,10 @@ contract TestMarketplace is Test {
 
         deployer = new DeployMarketplace();
         market = deployer.run();
-
+        
+        vm.deal(USER1, 10 ether);
+        vm.deal(USER, 10 ether);
+        
         vm.startPrank(USER);
 
         mockNft.mintNft();
@@ -79,11 +84,76 @@ contract TestMarketplace is Test {
     }
 
     function testOnlyOwnerCanList() public {
-        address USER1 = makeAddr("User1");
         vm.startPrank(USER1);
         vm.expectRevert(NftMarketplace.NotOwner.selector);
         market.listItem(address(mockNft), TOKEN_ID, PRICE);
         vm.stopPrank();
+    }
+
+    modifier listItem() {
+        vm.prank(USER);
+        market.listItem(address(mockNft), TOKEN_ID, PRICE);
+        _;
+    }
+
+    function testCanBuyItem() public listItem {
+        vm.prank(USER1);
+        market.buyItem{value: PRICE}(address(mockNft), TOKEN_ID);
+        NftMarketplace.Listing memory listing = market.getListing(address(mockNft), TOKEN_ID);
+
+        assertEq(listing.seller, address(0));
+        assertEq(listing.price, 0);
+        assertEq(mockNft.ownerOf(TOKEN_ID), USER1);
+        assertEq(market.getProceeds(USER), PRICE);
+        
+    }
+
+    function testRevertsIfNotListed() public {
+        vm.prank(USER1);
+        vm.expectRevert(NftMarketplace.NotListed.selector);
+        market.buyItem{value: PRICE}(address(mockNft), TOKEN_ID);
+    }
+
+    function testRevertsIfUnderPaid() public listItem {
+        vm.prank(USER1);
+        vm.expectRevert(NftMarketplace.PriceNotMet.selector);
+        market.buyItem{value: 0}(address(mockNft), TOKEN_ID);
+    }
+
+    function testRevertsIfOverPaid() public listItem{
+        vm.prank(USER1);
+        vm.expectRevert(NftMarketplace.PriceNotMet.selector);
+        market.buyItem{value: 2}(address(mockNft), TOKEN_ID);
+    }
+
+    function testListingIsDeletedAfterPurchase() public listItem {
+        vm.prank(USER1);
+        market.buyItem{value: PRICE}(address(mockNft), TOKEN_ID);
+        NftMarketplace.Listing memory listing = market.getListing(address(mockNft), TOKEN_ID);
+
+        assertEq(listing.seller, address(0));
+        assertEq(listing.price, 0);
+    }
+
+    function testSellersProceedsIncrease() public listItem {
+        uint256 initialBalance = market.getProceeds(USER);
+        vm.prank(USER1);
+        market.buyItem{value: PRICE}(address(mockNft), TOKEN_ID);
+        uint256 finalBalance = market.getProceeds(USER);
+        assertEq(finalBalance, initialBalance + PRICE);
+    }
+
+    function testOwnershipTransfersToBuyer() public listItem {
+        vm.prank(USER1);
+        market.buyItem{value: PRICE}(address(mockNft), TOKEN_ID);
+        assertEq(mockNft.ownerOf(TOKEN_ID), USER1);
+    }
+
+    function testItemBoughtEventIsEmitted() public listItem {
+        vm.expectEmit(true, true, true, true);
+        emit ItemBought(USER1, address(mockNft), TOKEN_ID, PRICE);
+        vm.prank(USER1);
+        market.buyItem{value: PRICE}(address(mockNft), TOKEN_ID);     
     }
 
 }
