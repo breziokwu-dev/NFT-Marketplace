@@ -11,6 +11,7 @@ import {DeployMockNft} from "script/DeployMockNft.s.sol";
 contract TestMarketplace is Test {
     event ItemListed(address indexed seller, address indexed nftAddress, uint256 indexed tokenId, uint256 price);
     event ItemBought(address indexed buyer, address indexed nftAddress, uint256 indexed tokenId, uint256 price);
+    event ProceedsWithdrawn(address indexed seller, uint256 amount);
 
     DeployMockNft public deploy;
     MockNft public mockNft;
@@ -154,6 +155,60 @@ contract TestMarketplace is Test {
         emit ItemBought(USER1, address(mockNft), TOKEN_ID, PRICE);
         vm.prank(USER1);
         market.buyItem{value: PRICE}(address(mockNft), TOKEN_ID);     
+    }
+
+    modifier boughtItem() {
+        vm.prank(USER1);
+        market.buyItem{value: PRICE}(address(mockNft), TOKEN_ID);
+        _;       
+    }
+
+    function testCanWithdrawProceeds() public listItem boughtItem {
+        uint256 proceeds = market.getProceeds(USER);
+        vm.prank(USER);
+        market.withdrawProceeds();
+
+        assertEq(proceeds, PRICE);
+        assertEq(market.getProceeds(USER), 0);
+    }
+
+    function testRevertsIfNoProceeds() public {
+        vm.prank(USER);
+        vm.expectRevert(NftMarketplace.NoProceeds.selector);
+        market.withdrawProceeds();
+    }
+
+    function testSellerReceivesEther() public listItem boughtItem {
+        uint256 initialBalance = address(USER).balance;
+        uint256 proceeds = market.getProceeds(USER);
+        vm.prank(USER);
+        market.withdrawProceeds();
+        uint256 finalBalance = address(USER).balance;
+        assertEq(finalBalance , initialBalance + proceeds);
+    }
+
+    function testEventIsEmittedOnWithdraw() public listItem boughtItem {
+        uint256 proceeds = market.getProceeds(USER);
+        vm.expectEmit(true, false, false,true);
+        emit ProceedsWithdrawn(USER, proceeds);
+        vm.prank(USER);
+        market.withdrawProceeds();
+    }
+
+    function testProceedsResetAfterwithdraw() public listItem boughtItem {
+        vm.prank(USER);
+        market.withdrawProceeds();
+        assertEq(market.getProceeds(USER) , 0);
+    }
+
+    function testSellerCannotWithdrawTwice() public listItem boughtItem {
+        vm.prank(USER);
+        market.withdrawProceeds();
+
+
+        vm.expectRevert(NftMarketplace.NoProceeds.selector);
+        vm.prank(USER);
+        market.withdrawProceeds();
     }
 
 }
