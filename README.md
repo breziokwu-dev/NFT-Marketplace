@@ -1,66 +1,157 @@
-## Foundry
+# NFT Marketplace
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+A decentralized NFT marketplace built with **Solidity** and **Foundry** that allows users to list, buy, update, and cancel NFT listings while securely withdrawing their proceeds.
 
-Foundry consists of:
+## Features
 
-- **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
-- **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
-- **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
-- **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+* List ERC721 NFTs for sale
+* Buy listed NFTs
+* Update listing prices
+* Cancel active listings
+* Withdraw sale proceeds
+* Custom errors for gas-efficient reverts
+* Event emission for important state changes
+* Comprehensive unit tests with Foundry
+* High test coverage
 
-## Documentation
+## Tech Stack
 
-https://book.getfoundry.sh/
+* Solidity ^0.8.18
+* Foundry
+* OpenZeppelin Contracts
+* Forge Standard Library
 
-## Usage
+## Project Structure
 
-### Build
-
-```shell
-$ forge build
+```
+.
+├── src/
+│   ├── NftMarketplace.sol
+│   └── MockNft.sol
+├── script/
+│   ├── DeployMarketplace.s.sol
+│   └── DeployMockNft.s.sol
+├── test/
+│   └── TestMarketplace.t.sol
+└── README.md
 ```
 
-### Test
+## Marketplace Workflow
 
-```shell
-$ forge test
+### Listing an NFT
+
+1. Mint an ERC721 NFT.
+2. Approve the marketplace contract.
+3. Call `listItem()`.
+4. The NFT becomes available for purchase.
+
+### Buying an NFT
+
+1. Call `buyItem()` with the exact listing price.
+2. Ownership of the NFT is transferred to the buyer.
+3. The seller's proceeds are credited to their account.
+
+### Withdrawing Proceeds
+
+1. Seller calls `withdrawProceeds()`.
+2. The marketplace transfers the accumulated proceeds.
+3. Seller's balance is reset to zero.
+
+## Smart Contract Functions
+
+### Listing
+
+* `listItem()`
+* `cancelListing()`
+* `updateListing()`
+
+### Purchasing
+
+* `buyItem()`
+
+### Withdrawals
+
+* `withdrawProceeds()`
+
+### View Functions
+
+* `getListing()`
+* `getProceeds()`
+
+## Security Considerations
+
+The marketplace includes several safety mechanisms:
+
+* Ownership verification before listing
+* Approval verification before listing
+* Checks-Effects-Interactions pattern for ETH withdrawals
+* Custom errors for gas efficiency
+* Event logging for important actions
+* Reusable modifiers to reduce duplicated validation logic
+
+## Testing
+
+The project includes unit tests covering:
+
+* Listing NFTs
+* Buying NFTs
+* Updating listings
+* Canceling listings
+* Withdrawing proceeds
+* Custom error reverts
+* Event emission
+* Ownership transfers
+* ETH accounting
+
+Run all tests:
+
+```bash
+forge test
 ```
 
-### Format
+Run tests with verbosity:
 
-```shell
-$ forge fmt
+```bash
+forge test -vvvv
 ```
 
-### Gas Snapshots
+Generate a coverage report:
 
-```shell
-$ forge snapshot
+```bash
+forge coverage
 ```
 
-### Anvil
+## Deployment
 
-```shell
-$ anvil
+Deploy the marketplace:
+
+```bash
+forge script script/DeployMarketplace.s.sol --broadcast
 ```
 
-### Deploy
+Deploy the mock NFT:
 
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
+```bash
+forge script script/DeployMockNft.s.sol --broadcast
 ```
 
-### Cast
+## Future Improvements
 
-```shell
-$ cast <subcommand>
-```
+* Marketplace fees
+* ERC-2981 royalty support
+* NFT offers
+* Timed auctions
+* Listing expiration
+* Batch listings
+* Frontend integration
 
-### Help
+## Author
 
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+Bryan Eziokwu
+
+GitHub: https://github.com/breziokwu-dev
+
+---
+
+This project was built to strengthen my understanding of ERC721 tokens, marketplace architecture, Solidity best practices, and testing with Foundry.
+
